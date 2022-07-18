@@ -1,0 +1,16 @@
+{% set rev_ip = '.'.join(zone.lan_ip.split('.')[::-1]) %}
+$ORIGIN .
+$TTL 907200	; 1 week 3 days 12 hours
+{{ rev_ip }}.in-addr.arpa	IN SOA	dnsserver.{{ zone.name }}. webmaster.{{ zone.name }}. (
+				{{ ansible_date_time.epoch_int  }} ; serial
+				10800      ; refresh (3 hours)
+				3600       ; retry (1 hour)
+				604800     ; expire (1 week)
+				38400      ; minimum (10 hours 40 minutes)
+				)
+			NS	dnsserver.{{ zone.name }}.
+$ORIGIN {{ rev_ip }}.in-addr.arpa.
+$TTL 3600	; 1 hour
+{% for dns_record in zone.dns %}
+{{ dns_record.ip.split('.')[-1] }}			PTR	{{ dns_record.hostname }}.{{ zone.name }}.
+{% endfor %}

@@ -1,0 +1,3 @@
+.venv
+inventory/hosts.yaml
+roles/router-setup/tests
