@@ -1,0 +1,153 @@
+---
+# tasks file for roles/router-setup
+
+- name: Prevent pop-up
+  debconf: name=iptables-persistent question={{ item }} vtype=boolean value=false
+  with_items:
+      - iptables-persistent/autosave_v4
+      - iptables-persistent/autosave_v6
+
+- name: Install packages
+  apt:
+    pkg:
+      - iptables-persistent
+      - isc-dhcp-server
+      - bind9
+    update_cache: yes
+
+- name: Harden ssh
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^{{ item.name }}"
+    line: "{{ item.name}} {{ item.value }}"
+  with_items:
+    - { name: "PermitRootLogin", value: "no" }
+    - { name: "PasswordAuthentication", value: "no" }
+    - { name: "ChallengeResponseAuthentication", value: "no" }
+    - { name: "UsePAM", value: "no" }
+
+- name: Restart ssh
+  service:
+    name: sshd
+    state: restarted
+
+- name: Allow port forwarding
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: '1'
+    state: present
+    reload: yes
+
+- name: Flush iptables
+  iptables_raw:
+    name: '*'
+    table: '*'
+    state: absent
+
+- name: Filter INPUT
+  iptables_raw:
+    name: FINPUT chain
+    table: filter
+    keep_unmanaged: no
+    rules: |
+      -A INPUT -i lo -j ACCEPT
+      -A INPUT -p icmp -j ACCEPT
+      -A INPUT -p tcp --dport 22 -j ACCEPT
+      -A INPUT -m state --state ESTABLISHED -j ACCEPT
+      {% for zone in zones %}
+      -A INPUT -i {{ zone.lan_interface }} -p tcp --dport 53 -j ACCEPT
+      -A INPUT -i {{ zone.lan_interface }} -p udp --dport 53 -j ACCEPT
+      -A INPUT -i {{ zone.lan_interface }} -p udp --dport 67:68 -j ACCEPT
+      {% endfor %}
+      -A INPUT -j LOG --log-prefix "DROP_INPUT: "
+      -P INPUT DROP
+
+- name: Filter FORWARD
+  iptables_raw:
+    name: FFORWARD chain
+    table: filter
+    keep_unmanaged: no
+    rules: |
+      -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+      {% for zone in zones %}
+      -A FORWARD -i {{ zone.lan_interface }} -o {{ hostvars[inventory_hostname].wan_interface }} -j ACCEPT
+      {% endfor %}
+      -A FORWARD -j LOG --log-prefix "DROP_FORWARD: "
+      -P FORWARD DROP
+
+- name: Nat POSTROUTING
+  iptables_raw:
+    name: NPOSTROUTING chain
+    table: nat
+    keep_unmanaged: no
+    rules: |
+      -A POSTROUTING -o {{ hostvars[inventory_hostname].wan_interface }} -j MASQUERADE
+      -P POSTROUTING ACCEPT
+
+- name: Create rndc key
+  shell:
+    cmd: "/usr/sbin/rndc-confgen -a"
+
+- name: "Deploy named.conf.{{ item }}"
+  template:
+    src: "named.conf.{{ item }}"
+    dest: "/etc/bind/named.conf.{{ item }}"
+    owner: root
+    group: bind
+  loop:
+    - options
+    - local
+
+- name: Deploy forward zone files
+  template:
+    src: template.hosts
+    dest: "/var/lib/bind/{{ zone.name }}.hosts"
+    owner: bind
+    group: bind
+  vars:
+    zone: "{{ item }}"
+  with_items: "{{ zones }}"
+
+- name: Deploy reverse zone file
+  template:
+    src: template.rev
+    dest: "{{ zone.lan_ip }}.rev"
+    owner: bind
+    group: bind
+  vars:
+    zone: "{{ item }}"
+  with_items: "{{ zones }}"
+
+- name: "Deploy reverse zone file {{ zone.name }}"
+  template:
+    src: template.rev
+    dest: "/var/lib/bind/{{ '.'.join(zone.lan_ip.split('.')[::-1]) }}.rev"
+    owner: bind
+    group: bind
+    mode: "644"
+  vars:
+    zone: "{{ item }}"
+  with_items: "{{ zones }}"
+
+- name: Deploy dhcpd.conf
+  template: 
+    src: "dhcpd.conf"
+    dest: "/etc/dhcp/dhcpd.conf"
+
+- name: Prepend key
+  shell:
+    cmd: 'echo $(cat /etc/bind/rndc.key | tr "\n" " " | sed -E "s/key\s*\"rndc-key\"\s*\{\s*algorithm (.+?);\s*secret(.+?);.*}.*/key rndc-key \{ algorithm \1; secret \2; };\n/g")"\n""$(cat /etc/dhcp/dhcpd.conf)" > /etc/dhcp/dhcpd.conf'
+
+- name: Use local dns
+  template:
+    src: resolved.conf
+    dest: /etc/systemd/resolved.conf
+
+- name: Restart services
+  systemd:
+    name: "{{ item }}"
+    state: restarted
+  with_items:
+    - isc-dhcp-server
+    - bind9
+    - systemd-resolved

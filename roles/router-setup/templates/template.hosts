@@ -1,0 +1,22 @@
+$ORIGIN .
+$TTL 907200	; 1 week 3 days 12 hours
+{{ zone.name }}			IN SOA	dnsserver.{{ zone.name }}. webmaster.{{ zone.name }}. (
+				{{ ansible_date_time.epoch_int  }} ; serial
+				10800      ; refresh (3 hours)
+				3600       ; retry (1 hour)
+				604800     ; expire (1 week)
+				38400      ; minimum (10 hours 40 minutes)
+				)
+			NS	dnsserver.{{ zone.name }}.
+$ORIGIN {{ zone.name }}.
+dnsserver		A	{{ zone.lan_ip }}.1
+{% if zone.dns is defined and zone.dns %}
+{% for dns_record in zone.dns %}
+{{ dns_record.hostname }}		A	{{ dns_record.ip }}
+{% if dns_record.cnames is defined %}
+{% for cname in dns_record.cnames %}
+{{ cname }}		CNAME	{{ dns_record.hostname }}
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}

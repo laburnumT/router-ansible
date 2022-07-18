@@ -1,0 +1,18 @@
+include "/etc/bind/rndc.key";
+
+
+{% for zone in zones %}
+zone "{{ zone.name }}" {
+    type master;
+    file "/var/lib/bind/{{ zone.name }}.hosts";
+    allow-update { key rndc-key; };
+}; 
+
+{% set rev_ip = '.'.join(zone.lan_ip.split('.')[::-1]) %}
+zone "{{ rev_ip }}.in-addr.arpa" {
+    type master;
+    file "/var/lib/bind/{{ rev_ip }}.rev";
+    allow-update { key rndc-key; };
+};
+
+{% endfor %}

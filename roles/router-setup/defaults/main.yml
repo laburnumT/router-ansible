@@ -1,0 +1,4 @@
+---
+# defaults file for roles/router-setup
+dhcp_dynamic_range_bottom: 100
+dhcp_dynamic_range_top: 199

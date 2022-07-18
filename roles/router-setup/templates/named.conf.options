@@ -1,0 +1,21 @@
+options {
+	directory "/var/cache/bind";
+	
+	auth-nxdomain no;    # conform to RFC1035
+    	forwarders {
+		8.8.8.8;
+		8.8.4.4;
+        };
+    	allow-query {
+	{% for z in hostvars[inventory_hostname].zones %}
+	{{ z.lan_ip }}/24;
+	{% endfor %}
+	127.0.0.1;
+        };
+	allow-transfer {
+	{% for z in hostvars[inventory_hostname].zones %}
+	{{ z.lan_ip }}/24;
+	{% endfor %}
+	127.0.0.1;
+        };
+};
