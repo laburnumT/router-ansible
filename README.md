@@ -59,6 +59,7 @@ The following tags can be added by using `--tags <tag>`:
 - install (Run full playbook)
 - setup (Run system, network, and application configuration)
 - iptables (Deploy iptable rules)
+
 _Note that application configuration always runs_
 
 
