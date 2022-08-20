@@ -46,10 +46,21 @@ An example inventory file can be found at [inventory/hosts.yaml.example](invento
 ## Run
 
 ### Requirements
-`pip install -r requirements.txt`
+```
+pip install -r requirements.txt
+```
 
 ### Deploy
-`ansible-playbook router.yaml`
+```
+ansible-playbook router.yaml
+```
+
+The following tags can be added by using `--tags <tag>`:
+- install (Run full playbook)
+- setup (Run system, network, and application configuration)
+- iptables (Deploy iptable rules)
+_Note that application configuration always runs_
+
 
 ## Notes
 
