@@ -5,9 +5,20 @@
   become_user: root
 
   tasks:
-    - name: router
+    - name: Install packages
       include_role:
         name: router-setup
+        tasks_from: install
+
+    - name: Set up host
+      include_role: 
+        name: router-setup
+        tasks_from: setup
+
+    - name: Deploy configuration
+      include_role: 
+        name: router-setup
+        tasks_from: config
       vars: 
         zones: "{{ hostvars[inventory_hostname].zones }}"
 
