@@ -1,5 +1,14 @@
 ---
 
+- name: Deploy netplan
+  template:
+    src: router.yaml.j2
+    dest: /etc/netplan/router.yaml
+
+- name: Apply netplan
+  shell: |
+    netplan apply
+
 - name: Harden ssh
   lineinfile:
     path: /etc/ssh/sshd_config
@@ -23,52 +32,22 @@
     state: present
     reload: yes
 
-- name: Flush iptables
-  iptables_raw:
-    name: '*'
-    table: '*'
-    state: absent
-
-- name: Filter INPUT
-  iptables_raw:
-    name: FINPUT chain
-    table: filter
-    keep_unmanaged: no
-    rules: |
-      -A INPUT -i lo -j ACCEPT
-      -A INPUT -p icmp -j ACCEPT
-      -A INPUT -p tcp --dport 22 -j ACCEPT
-      -A INPUT -m state --state ESTABLISHED -j ACCEPT
-      {% for zone in zones %}
-      -A INPUT -i {{ zone.lan_interface }} -p tcp --dport 53 -j ACCEPT
-      -A INPUT -i {{ zone.lan_interface }} -p udp --dport 53 -j ACCEPT
-      -A INPUT -i {{ zone.lan_interface }} -p udp --dport 67:68 -j ACCEPT
-      {% endfor %}
-      -A INPUT -j LOG --log-prefix "DROP_INPUT: "
-      -P INPUT DROP
-
-- name: Filter FORWARD
-  iptables_raw:
-    name: FFORWARD chain
-    table: filter
-    keep_unmanaged: no
-    rules: |
-      -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-      {% for zone in zones %}
-      -A FORWARD -i {{ zone.lan_interface }} -o {{ hostvars[inventory_hostname].wan_interface }} -j ACCEPT
-      {% endfor %}
-      -A FORWARD -j LOG --log-prefix "DROP_FORWARD: "
-      -P FORWARD DROP
-
-- name: Nat POSTROUTING
-  iptables_raw:
-    name: NPOSTROUTING chain
-    table: nat
-    keep_unmanaged: no
-    rules: |
-      -A POSTROUTING -o {{ hostvars[inventory_hostname].wan_interface }} -j MASQUERADE
-      -P POSTROUTING ACCEPT
-
 - name: Create rndc key
   shell:
     cmd: "/usr/sbin/rndc-confgen -a"
+
+- name: Use local dns
+  template:
+    src: resolved.conf
+    dest: /etc/systemd/resolved.conf
+
+- name: Restart services
+  systemd:
+    name: systemd-resolved
+    state: restarted
+
+- name: Move to iptables
+  import_role:
+    name: router-setup
+    tasks_from: iptables
+

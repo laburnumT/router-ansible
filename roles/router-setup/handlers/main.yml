@@ -1,2 +1,13 @@
 ---
 # handlers file for roles/router-setup
+
+- name: Restart isc-dhcp-server
+  systemd: 
+    name: isc-dhcp-server
+    state: restarted
+
+- name: Restart bind9
+  systemd:
+    name: bind9
+    state: restarted
+

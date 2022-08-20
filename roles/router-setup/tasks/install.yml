@@ -13,3 +13,8 @@
       - isc-dhcp-server
       - bind9
     update_cache: yes
+
+- name: Proceed to set up
+  import_role:
+    name: router-setup
+    tasks_from: setup
