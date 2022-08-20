@@ -1,0 +1,13 @@
+network:
+  ethernets:
+    {{ wan_interface }}:
+      dhcp4: true
+{% for zone in zones %}
+    {{ zone.lan_interface }}:
+      dhcp4: false
+      addresses:
+        - {{ zone.lan_ip }}.1/24
+{% endfor %}
+  version: 2
+
+# vim: ft=yaml

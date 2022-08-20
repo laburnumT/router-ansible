@@ -6,19 +6,32 @@
 
   tasks:
     - name: Install packages
-      include_role:
+      import_role:
         name: router-setup
         tasks_from: install
+      tags:
+        - never
+        - install
 
     - name: Set up host
-      include_role: 
+      import_role: 
         name: router-setup
         tasks_from: setup
+      tags:
+        - never
+        - setup
+
+    - name: Set up iptables
+      import_role:
+        name: router-setup
+        tasks_from: iptables
+      tags:
+        - never
+        - iptables
 
     - name: Deploy configuration
       include_role: 
         name: router-setup
         tasks_from: config
-      vars: 
-        zones: "{{ hostvars[inventory_hostname].zones }}"
-
+      tags:
+        - always

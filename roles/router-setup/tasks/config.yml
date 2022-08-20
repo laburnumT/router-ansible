@@ -1,65 +1,48 @@
 ---
 
-- name: "Deploy named.conf.{{ item }}"
-  template:
-    src: "named.conf.{{ item }}"
-    dest: "/etc/bind/named.conf.{{ item }}"
-    owner: root
-    group: bind
-  loop:
-    - options
-    - local
+- name: bind9 configuration
+  block:
+    - name: "Deploy named.conf.{{ item }}"
+      template:
+        src: "named.conf.{{ item }}"
+        dest: "/etc/bind/named.conf.{{ item }}"
+        owner: root
+        group: bind
+      loop:
+        - options
+        - local
 
-- name: Deploy forward zone files
-  template:
-    src: template.hosts
-    dest: "/var/lib/bind/{{ zone.name }}.hosts"
-    owner: bind
-    group: bind
-  vars:
-    zone: "{{ item }}"
-  with_items: "{{ zones }}"
+    - name: Deploy forward zone files
+      template:
+        src: template.hosts
+        dest: "/var/lib/bind/{{ zone.name }}.hosts"
+        owner: bind
+        group: bind
+      vars:
+        zone: "{{ item }}"
+      with_items: "{{ zones }}"
 
-- name: Deploy reverse zone file
-  template:
-    src: template.rev
-    dest: "{{ zone.lan_ip }}.rev"
-    owner: bind
-    group: bind
-  vars:
-    zone: "{{ item }}"
-  with_items: "{{ zones }}"
+    - name: "Deploy reverse zone file {{ zone.name }}"
+      template:
+        src: template.rev
+        dest: "/var/lib/bind/{{ '.'.join(zone.lan_ip.split('.')[::-1]) }}.rev"
+        owner: bind
+        group: bind
+        mode: "644"
+      vars:
+        zone: "{{ item }}"
+      with_items: "{{ zones }}"
+  notify: Restart bind9
 
-- name: "Deploy reverse zone file {{ zone.name }}"
-  template:
-    src: template.rev
-    dest: "/var/lib/bind/{{ '.'.join(zone.lan_ip.split('.')[::-1]) }}.rev"
-    owner: bind
-    group: bind
-    mode: "644"
-  vars:
-    zone: "{{ item }}"
-  with_items: "{{ zones }}"
+- name: dhcpd config
+  block:
+    - name: Deploy dhcpd.conf
+      template: 
+        src: "dhcpd.conf"
+        dest: "/etc/dhcp/dhcpd.conf"
 
-- name: Deploy dhcpd.conf
-  template: 
-    src: "dhcpd.conf"
-    dest: "/etc/dhcp/dhcpd.conf"
+    - name: Prepend key
+      shell: |
+        echo $(cat /etc/bind/rndc.key | tr "\n" " " | sed -E "s/key\s*\"rndc-key\"\s*\{\s*algorithm (.+?);\s*secret(.+?);.*}.*/key rndc-key \{ algorithm \1; secret \2; };\n/g")"\n""$(cat /etc/dhcp/dhcpd.conf)" > /etc/dhcp/dhcpd.conf
+  notify: Restart isc-dhcp-server
 
-- name: Prepend key
-  shell:
-    cmd: 'echo $(cat /etc/bind/rndc.key | tr "\n" " " | sed -E "s/key\s*\"rndc-key\"\s*\{\s*algorithm (.+?);\s*secret(.+?);.*}.*/key rndc-key \{ algorithm \1; secret \2; };\n/g")"\n""$(cat /etc/dhcp/dhcpd.conf)" > /etc/dhcp/dhcpd.conf'
-
-- name: Use local dns
-  template:
-    src: resolved.conf
-    dest: /etc/systemd/resolved.conf
-
-- name: Restart services
-  systemd:
-    name: "{{ item }}"
-    state: restarted
-  loop:
-    - isc-dhcp-server
-    - bind9
-    - systemd-resolved
