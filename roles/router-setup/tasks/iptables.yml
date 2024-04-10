@@ -1,16 +1,15 @@
 ---
-
 - name: Flush iptables
   iptables_raw:
-    name: '*'
-    table: '*'
+    name: "*"
+    table: "*"
     state: absent
 
 - name: Filter INPUT
   iptables_raw:
     name: FINPUT chain
     table: filter
-    keep_unmanaged: no
+    keep_unmanaged: false
     rules: |
       -A INPUT -i lo -j ACCEPT
       -A INPUT -p icmp -j ACCEPT
@@ -28,7 +27,7 @@
   iptables_raw:
     name: FFORWARD chain
     table: filter
-    keep_unmanaged: no
+    keep_unmanaged: false
     rules: |
       -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
       {% for zone in zones %}
@@ -41,7 +40,9 @@
   iptables_raw:
     name: NPOSTROUTING chain
     table: nat
-    keep_unmanaged: no
+    keep_unmanaged: false
     rules: |
       -A POSTROUTING -o {{ hostvars[inventory_hostname].wan_interface }} -j MASQUERADE
       -P POSTROUTING ACCEPT
+
+# vim: ft=yaml.ansible

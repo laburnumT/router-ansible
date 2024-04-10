@@ -2,12 +2,13 @@
 # handlers file for roles/router-setup
 
 - name: Restart isc-dhcp-server
-  systemd: 
+  ansible.builtin.systemd:
     name: isc-dhcp-server
     state: restarted
 
 - name: Restart bind9
-  systemd:
+  ansible.builtin.systemd:
     name: bind9
     state: restarted
 
+# vim: ft=yaml.ansible

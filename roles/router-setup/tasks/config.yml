@@ -1,48 +1,32 @@
 ---
+- name: "Deploy named.conf.{{ item }}"
+  ansible.builtin.template:
+    src: "named.conf.{{ item }}"
+    dest: "/etc/bind/named.conf.{{ item }}"
+    owner: root
+    group: bind
+  loop:
+    - options
+    - local
 
-- name: bind9 configuration
-  block:
-    - name: "Deploy named.conf.{{ item }}"
-      template:
-        src: "named.conf.{{ item }}"
-        dest: "/etc/bind/named.conf.{{ item }}"
-        owner: root
-        group: bind
-      loop:
-        - options
-        - local
+- name: Deploy bind zone files
+  ansible.builtin.include_role:
+    name: router-setup
+    tasks_from: bind-zone
+  loop: "{{ zones }}"
+  loop_control:
+    loop_var: zone
 
-    - name: Deploy forward zone files
-      template:
-        src: template.hosts
-        dest: "/var/lib/bind/{{ zone.name }}.hosts"
-        owner: bind
-        group: bind
-      vars:
-        zone: "{{ item }}"
-      with_items: "{{ zones }}"
+- name: Deploy dhcpd.conf
+  ansible.builtin.template:
+    src: "dhcpd.conf"
+    dest: "/etc/dhcp/dhcpd.conf"
 
-    - name: "Deploy reverse zone file {{ zone.name }}"
-      template:
-        src: template.rev
-        dest: "/var/lib/bind/{{ '.'.join(zone.lan_ip.split('.')[::-1]) }}.rev"
-        owner: bind
-        group: bind
-        mode: "644"
-      vars:
-        zone: "{{ item }}"
-      with_items: "{{ zones }}"
-  notify: Restart bind9
-
-- name: dhcpd config
-  block:
-    - name: Deploy dhcpd.conf
-      template: 
-        src: "dhcpd.conf"
-        dest: "/etc/dhcp/dhcpd.conf"
-
-    - name: Prepend key
-      shell: |
-        echo $(cat /etc/bind/rndc.key | tr "\n" " " | sed -E "s/key\s*\"rndc-key\"\s*\{\s*algorithm (.+?);\s*secret(.+?);.*}.*/key rndc-key \{ algorithm \1; secret \2; };\n/g")"\n""$(cat /etc/dhcp/dhcpd.conf)" > /etc/dhcp/dhcpd.conf
+- name: Prepend key
+  ansible.builtin.shell: |
+    set -o pipefail
+    echo $(cat /etc/bind/rndc.key | tr "\n" " " | sed -E "s/key\s*\"rndc-key\"\s*\{\s*algorithm (.+?);\s*secret(.+?);.*}.*/key rndc-key \{ algorithm \1; secret \2; };\n/g")"\n""$(cat /etc/dhcp/dhcpd.conf)" > /etc/dhcp/dhcpd.conf
+  changed_when: true
   notify: Restart isc-dhcp-server
 
+# vim: ft=yaml.ansible
