@@ -1,3 +1,15 @@
+acl "trusted" {
+{% for z in hostvars[inventory_hostname].zones %}
+	{{ z.lan_ip }}/24;
+{% endfor %}
+{% for z in hostvars[inventory_hostname].zones %}
+{% for r in z.allowed_ips %}
+        {{ r }};
+{% endfor %}
+{% endfor %}
+	127.0.0.1;
+};
+
 options {
 	directory "/var/cache/bind";
 	
@@ -6,16 +18,11 @@ options {
 		8.8.8.8;
 		8.8.4.4;
         };
-    	allow-query {
-	{% for z in hostvars[inventory_hostname].zones %}
-	{{ z.lan_ip }}/24;
-	{% endfor %}
-	127.0.0.1;
-        };
-	allow-transfer {
-	{% for z in hostvars[inventory_hostname].zones %}
-	{{ z.lan_ip }}/24;
-	{% endfor %}
-	127.0.0.1;
-        };
+
+                
+    	allow-query { trusted; };
+    	allow-query-cache { trusted; };
+	allow-transfer { trusted; };
+	allow-recursion { trusted; };
+
 };

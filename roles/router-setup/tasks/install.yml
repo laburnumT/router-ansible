@@ -1,20 +1,25 @@
 ---
-
 - name: Prevent pop-up
-  debconf: name=iptables-persistent question={{ item }} vtype=boolean value=false
+  ansible.builtin.debconf:
+    name: iptables-persistent
+    question: "{{ item }}"
+    vtype: boolean
+    value: false
   loop:
     - iptables-persistent/autosave_v4
     - iptables-persistent/autosave_v6
 
 - name: Install packages
-  apt:
+  ansible.builtin.apt:
     pkg:
       - iptables-persistent
       - isc-dhcp-server
       - bind9
-    update_cache: yes
+    update_cache: true
 
 - name: Proceed to set up
-  import_role:
+  ansible.builtin.import_role:
     name: router-setup
     tasks_from: setup
+
+# vim: ft=yaml.ansible

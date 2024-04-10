@@ -1,0 +1,22 @@
+---
+wan_interface: enp1s0
+
+zones:
+  - name: example1.local
+    lan_interface: eth1
+    lan_ip: 10.10.10
+    dhcp_dynamic_range_bottom: 200
+    dhcp_dynamic_range_top: 254
+    allowed_ips:
+      - 10.10.10.0/24
+    dns:
+      - hostname: host-01
+        ip: 10.10.10.1
+        MAC: 00:00:00:00:00:01
+        cnames:
+          - host
+      - hostname: host-02
+        ip: 10.10.10.2
+        MAC: 00:00:00:00:00:02
+
+# vim: ft=yaml.ansible

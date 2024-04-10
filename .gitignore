@@ -1,4 +1,5 @@
-.venv
+.venv/
 inventory/hosts.yaml
-roles/router-setup/tests
+roles/router-setup/tests/
+library/__pycache__/
 *.swp

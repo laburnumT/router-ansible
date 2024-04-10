@@ -1,16 +1,16 @@
 ---
-
 - name: Deploy netplan
-  template:
+  ansible.builtin.template:
     src: router.yaml.j2
     dest: /etc/netplan/router.yaml
 
 - name: Apply netplan
-  shell: |
+  ansible.builtin.shell: |
     netplan apply
+  changed_when: true
 
 - name: Harden ssh
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/ssh/sshd_config
     regexp: "^{{ item }}"
     line: "{{ item }} no"
@@ -21,33 +21,34 @@
     - "UsePAM"
 
 - name: Restart ssh
-  service:
+  ansible.builtin.service:
     name: sshd
     state: restarted
 
 - name: Allow port forwarding
   ansible.posix.sysctl:
     name: net.ipv4.ip_forward
-    value: '1'
+    value: "1"
     state: present
-    reload: yes
+    reload: true
 
 - name: Create rndc key
-  shell:
-    cmd: "/usr/sbin/rndc-confgen -a"
+  ansible.builtin.command: /usr/sbin/rndc-confgen -a
+  changed_when: true
 
 - name: Use local dns
-  template:
+  ansible.builtin.template:
     src: resolved.conf
     dest: /etc/systemd/resolved.conf
 
 - name: Restart services
-  systemd:
+  ansible.builtin.systemd:
     name: systemd-resolved
     state: restarted
 
 - name: Move to iptables
-  import_role:
+  ansible.builtin.import_role:
     name: router-setup
     tasks_from: iptables
 
+# vim: ft=yaml.ansible

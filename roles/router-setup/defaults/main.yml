@@ -5,3 +5,5 @@ dhcp_dynamic_range_bottom: 100
 dhcp_dynamic_range_top: 199
 
 zones: "{{ hostvars[inventory_hostname].zones }}"
+
+# vim: ft=yaml.ansible

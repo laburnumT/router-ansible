@@ -1,38 +1,63 @@
-ROUTER-SETUP
-=========
+# ROUTER-SETUP
 
-A brief description of the role goes here.
+An ansible role for setting up a machine to run as a router with its own dns and dhcp capabilities.
 
-Requirements
-------------
+</br>
 
-Any pre-requisites that may not be covered by Ansible itself or the role should be mentioned here. For instance, if the role uses the EC2 module, it may be a good idea to mention in this section that the boto package is required.
+## Configuration
 
-Role Variables
---------------
+Configuration of variables is done in the inventory file.
+The script expects the inventory to be at inventory/hosts.yaml. A different location can be specified using the `-i` flag.
 
-A description of the settable variables for this role should go here, including any variables that are in defaults/main.yml, vars/main.yml, and any variables that can/should be set via parameters to the role. Any variables that are read from other roles and/or the global scope (ie. hostvars, group vars, etc.) should be mentioned here as well.
+The variables must be part of the hostvars for which the playbook is run.
 
-Dependencies
-------------
+### Main
 
-A list of other roles hosted on Galaxy should go here, plus any details in regards to parameters that may need to be set for other roles, or variables that are used from other roles.
+| Key           | Required | Default | Description                             |
+| ------------- | -------- | ------- | --------------------------------------- |
+| wan_interface | yes      | -       | The interface to the "internet"         |
+| zones         | yes      | -       | List of zones managed by the dns server |
 
-Example Playbook
-----------------
+### Main.Zones[]
 
-Including an example of how to use your role (for instance, with variables passed in as parameters) is always nice for users too:
+| Key                       | Required | Default | Description                                              |
+| ------------------------- | -------- | ------- | -------------------------------------------------------- |
+| name                      | yes      | -       | Domain name of the zone                                  |
+| lan_interface             | yes      | -       | The interface to the subnet the server is the router for |
+| lan_ip                    | yes      | -       | First three octets for the subnet                        |
+| allowed_ips               | no       | -       | List of whitelisted subnets allowed to query that zone   |
+| dhcp_dynamic_range_bottom | yes      | 100     | Lowest value available for dynamic dhcp                  |
+| dhcp_dynamic_range_top    | yes      | 199     | Highest value available for dynamic dhcp                 |
+| dns                       | yes      | -       | List of static ips in the zone                           |
 
-    - hosts: servers
-      roles:
-         - { role: username.rolename, x: 42 }
+### Main.Zones[].dns[]
 
-License
--------
+| Key      | Required | Default | Description                                 |
+| -------- | -------- | ------- | ------------------------------------------- |
+| hostname | yes      | -       | Hostname of the machine                     |
+| ip       | yes      | -       | Static ip of the machine                    |
+| MAC      | yes      | -       | MAC address of the interface of the machine |
+| cnames   | no       | -       | List of CNAMES associated with the machine  |
 
-BSD
+</br>
 
-Author Information
-------------------
+## Run
 
-An optional section for the role authors to include contact information, or a website (HTML is not allowed).
+```
+ansible-playbook router.yaml
+```
+
+The following tags can be added by using `--tags <tag>`:
+
+- install (Run full playbook)
+- setup (Run system, network, and application configuration)
+- iptables (Deploy iptable rules)
+
+_Note that application configuration always runs_
+
+## Notes
+
+- Currently assumes /24 subnet
+- DNS zones always correspond to a specific subnet
+- Only tested on ubuntu 20.04
+- No interface configuration
